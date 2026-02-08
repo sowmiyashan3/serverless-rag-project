@@ -1,0 +1,4 @@
+azure-functions
+azure-storage-blob>=12.28.0
+tqdm
+requests
