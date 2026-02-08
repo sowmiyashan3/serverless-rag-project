@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sentence-transformers
+azure-storage-blob
+requests
+numpy
+python-dotenv
+

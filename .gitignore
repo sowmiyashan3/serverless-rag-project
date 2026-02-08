@@ -1,4 +1,5 @@
 wiki-ingest-function/local.settings.json
-wiki-ingest-function/.venv
-wiki-ingest-function/.vscode
+wiki-ingest-function/.venv/*
+wiki-ingest-function/.vscode/*
+.DS_Store
 

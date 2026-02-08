@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama3-aks
+  labels:
+    app: llama3-aks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama3-aks
+  template:
+    metadata:
+      labels:
+        app: llama3-aks
+    spec:
+      containers:
+        - name: llama3-aks
+          image: <acr-name>.azurecr.io/<docker-name.:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: llama3-env
+
