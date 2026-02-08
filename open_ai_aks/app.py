@@ -4,9 +4,7 @@ from pydantic import BaseModel
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 load_dotenv()
-# ----------------------------
-# Azure OpenAI client
-# ----------------------------
+
 client = AzureOpenAI(
     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
@@ -35,9 +33,7 @@ RULES:
 - Output ONLY the optimized query or NO_CHANGE
 """
 
-# ----------------------------
-# FastAPI app
-# ----------------------------
+
 app = FastAPI()
 
 class Prompt(BaseModel):

@@ -10,7 +10,6 @@ from fastapi import FastAPI, HTTPException
 from azure.search.documents import SearchClient
 from azure.core.credentials import AzureKeyCredential
 
-# ---------------- CONFIG ----------------
 OPENSEARCH_ENDPOINT = os.environ["OPENSEARCH_ENDPOINT"]
 OPENSEARCH_INDEX = os.environ["OPENSEARCH_INDEX"]
 OPENSEARCH_KEY = os.environ["OPENSEARCH_KEY"]
@@ -23,11 +22,9 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 INDEXED_IDS_PATH = os.path.join(STATE_DIR, "indexed_ids.json")
 
-# ---------------- APP ----------------
 app = FastAPI(title="OpenSearch Ingestion Service")
 lock = Lock()
 
-# ---------------- LOGGING ----------------
 logging.basicConfig(
     filename=os.path.join(LOG_DIR, "opensearch.log"),
     level=logging.INFO,
@@ -39,14 +36,12 @@ logger.info(OPENSEARCH_ENDPOINT)
 logger.info(OPENSEARCH_INDEX)
 logger.info(OPENSEARCH_KEY)
 
-# ---------------- OPENSEARCH CLIENT ----------------
 search_client = SearchClient(
     endpoint=OPENSEARCH_ENDPOINT,
     index_name=OPENSEARCH_INDEX,
     credential=AzureKeyCredential(OPENSEARCH_KEY)
 )
 
-# ---------------- STATE ----------------
 def load_indexed_ids() -> Set[str]:
     if os.path.exists(INDEXED_IDS_PATH):
         with open(INDEXED_IDS_PATH, "r") as f:
@@ -60,7 +55,6 @@ def save_indexed_ids(ids: Set[str]):
 indexed_ids = load_indexed_ids()
 
 
-# ---------------- PAYLOAD MODELS ----------------
 class ChunkItem(BaseModel):
     chunk_id: str
     chunk_text: str
@@ -79,7 +73,6 @@ class SearchResponse(BaseModel):
     total_results: int
     results: List[SearchResponseItem]
 
-# ---------------- ROUTES ----------------
 @app.get("/health")
 def health():
     return {
@@ -156,21 +149,16 @@ def search_docs(q: str, top_k: Optional[int] = 5):
             )
         )
 
-        # ----------------------------
-        # 1️⃣ Collect raw scores
-        # ----------------------------
+
         raw_scores = [
             r["@search.score"] for r in results if "@search.score" in r
         ]
         max_score = 100
 
-        # ----------------------------
-        # 2️⃣ Build response with normalized score
-        # ----------------------------
         response_items = []
         for r in results:
             raw_score = r.get("@search.score", 0.0)
-            normalized_score = raw_score / max_score  # 👈 KEY LINE
+            normalized_score = raw_score / max_score  
 
             response_items.append(
                 SearchResponseItem(

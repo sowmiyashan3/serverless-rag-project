@@ -9,7 +9,6 @@ import numpy as np
 from azure.storage.blob import BlobServiceClient
 
 
-# ---------------- CONFIG ----------------
 INDEX_DIR = "faiss_index"
 INDEX_PATH = os.path.join(INDEX_DIR, "index.faiss")
 ID_MAP_PATH = os.path.join(INDEX_DIR, "id_mapping.json")
@@ -21,10 +20,9 @@ BLOB_CONTAINER = "wiki-metadata"
 blob_service_client = BlobServiceClient.from_connection_string(BLOB_CONN_STR)
 container_client = blob_service_client.get_container_client(BLOB_CONTAINER)
 
-EMBEDDING_DIM = 384  # change based on model
+EMBEDDING_DIM = 384  
 LOCK = threading.Lock()
 
-# ---------------- MODELS ----------------
 class EmbeddingRequest(BaseModel):
     chunk_id: str
     embedding: List[float]
@@ -37,10 +35,8 @@ class EmbeddingBatchRequest(BaseModel):
     items: List[EmbeddingRequest]
 
 
-# ---------------- APP ----------------
 app = FastAPI(title="FAISS Vector Service")
 
-# ---------------- LOAD / INIT ----------------
 def load_or_create_index():
     if os.path.exists(INDEX_PATH):
         print("🔁 Loading FAISS index from disk...")
@@ -56,7 +52,6 @@ def load_or_create_index():
 
 index, id_mapping = load_or_create_index()
 
-# ---------------- HELPERS ----------------
 def persist_index():
     faiss.write_index(index, INDEX_PATH)
     with open(ID_MAP_PATH, "w") as f:
@@ -79,7 +74,6 @@ def get_chunk_text_from_blob(chunk_id: str):
                 return item["chunk_text"]
     return "[CONTENT NOT FOUND]"
 
-# ---------------- ROUTES ----------------
 @app.get("/health")
 def health():
     return {

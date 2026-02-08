@@ -13,9 +13,6 @@ from dotenv import load_dotenv
 from fastembed import TextEmbedding
 import numpy as np
 
-# =========================================================
-# LOAD ENVIRONMENT VARIABLES
-# =========================================================
 load_dotenv()
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
@@ -26,9 +23,7 @@ OPENSEARCH_ENDPOINT = os.environ["OpensearchEndpoint"]
 METADATA_CONTAINER = "wiki-metadata"
 CHUNKS_FILE = "documents_chunks.jsonl"
 
-# =========================================================
-# DIRECTORIES & STATE
-# =========================================================
+
 STATE_DIR = "state"
 LOG_DIR = "logs"
 os.makedirs(STATE_DIR, exist_ok=True)
@@ -36,9 +31,6 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 EMBEDDED_IDS_PATH = os.path.join(STATE_DIR, "embedded_ids.json")
 
-# =========================================================
-# LOGGING SETUP
-# =========================================================
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -49,18 +41,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# =========================================================
-# CONFIG
-# =========================================================
+
 BATCH_SIZE = 64
 WRITE_BUFFER_SIZE = 8000
 EMBED_DIM = 384
 os.environ["OMP_NUM_THREADS"] = "2"
 os.environ["MKL_NUM_THREADS"] = "2"
 
-# =========================================================
-# GLOBAL STATE
-# =========================================================
+
 embedded_ids: Set[str] = set()
 is_ingesting = False
 ingestion_stats = {
@@ -75,9 +63,7 @@ ingestion_stats = {
     "error": None
 }
 
-# =========================================================
-# LOAD/SAVE EMBEDDED IDS
-# =========================================================
+
 def load_embedded_ids() -> Set[str]:
     """Load set of already-processed chunk IDs"""
     if os.path.exists(EMBEDDED_IDS_PATH):
@@ -105,9 +91,7 @@ embedded_ids = load_embedded_ids()
 logger.info(f"Loaded {len(embedded_ids)} previously embedded chunks")
 
 
-# =========================================================
-# STREAM CHUNKS FROM AZURE BLOB
-# =========================================================
+
 def stream_chunks_from_blob():
     """Stream chunks line-by-line from Azure Blob Storage"""
     blob_service = BlobServiceClient.from_connection_string(STORAGE_CONN)
@@ -130,20 +114,16 @@ def stream_chunks_from_blob():
     if buffer.strip():
         yield json.loads(buffer)
 
-# =========================================================
-# LOAD FASTEMBED MODEL
-# =========================================================
+
 logger.info("Loading FastEmbed model...")
 model = TextEmbedding(
     model_name="sentence-transformers/all-MiniLM-L6-v2",
     max_length=256,
     threads=2
 )
-logger.info("✅ FastEmbed model loaded (INT8 quantized)")
+logger.info("FastEmbed model loaded (INT8 quantized)")
 
-# =========================================================
-# EMBEDDING FUNCTION
-# =========================================================
+
 def embed_batch(texts: List[str], ids: List[str]) -> tuple[List[str], np.ndarray]:
     """Generate embeddings for a batch of texts"""
     try:
@@ -160,9 +140,6 @@ def embed_batch(texts: List[str], ids: List[str]) -> tuple[List[str], np.ndarray
         return [], np.array([])
 
 
-# =========================================================
-# SEND TO FAISS (BULK)
-# =========================================================
 def send_to_faiss_bulk(chunk_ids: List[str], embeddings: np.ndarray) -> bool:
     """Send large batch of embeddings to FAISS service"""
     try:
@@ -173,7 +150,7 @@ def send_to_faiss_bulk(chunk_ids: List[str], embeddings: np.ndarray) -> bool:
         
         payload = {"items": items}
         
-        logger.info(f"📤 Sending {len(chunk_ids):,} vectors to FAISS...")
+        logger.info(f"Sending {len(chunk_ids):,} vectors to FAISS...")
         
         response = requests.post(
             f"{FAISS_ENDPOINT}",
@@ -184,19 +161,16 @@ def send_to_faiss_bulk(chunk_ids: List[str], embeddings: np.ndarray) -> bool:
         
         if response.status_code == 200:
             result = response.json()
-            logger.info(f"✅ FAISS: {result.get('added', 0):,} vectors added")
+            logger.info(f"FAISS: {result.get('added', 0):,} vectors added")
             return True
         else:
-            logger.error(f"❌ FAISS error: {response.status_code} - {response.text}")
+            logger.error(f"FAISS error: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        logger.error(f"❌ FAISS request failed: {e}", exc_info=True)
+        logger.error(f"FAISS request failed: {e}", exc_info=True)
         return False
 
-# =========================================================
-# SEND TO OPENSEARCH (BULK)
-# =========================================================
 def send_to_opensearch_bulk(chunk_ids: List[str], chunks: List[dict]) -> bool:
     """Send large batch of documents to OpenSearch service"""
     try:
@@ -214,7 +188,7 @@ def send_to_opensearch_bulk(chunk_ids: List[str], chunks: List[dict]) -> bool:
         
         payload = {"items": items}
         
-        logger.info(f"📤 Sending {len(chunk_ids):,} documents to OpenSearch...")
+        logger.info(f"Sending {len(chunk_ids):,} documents to OpenSearch...")
         
         response = requests.post(
             f"{OPENSEARCH_ENDPOINT}",
@@ -225,19 +199,16 @@ def send_to_opensearch_bulk(chunk_ids: List[str], chunks: List[dict]) -> bool:
         
         if response.status_code == 200:
             result = response.json()
-            logger.info(f"✅ OpenSearch: {result.get('count', 0):,} documents indexed")
+            logger.info(f"OpenSearch: {result.get('count', 0):,} documents indexed")
             return True
         else:
-            logger.error(f"❌ OpenSearch error: {response.status_code} - {response.text}")
+            logger.error(f"OpenSearch error: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        logger.error(f"❌ OpenSearch request failed: {e}", exc_info=True)
+        logger.error(f"OpenSearch request failed: {e}", exc_info=True)
         return False
 
-# =========================================================
-# MAIN INGESTION FUNCTION (WITH DETAILED TIMING)
-# =========================================================
 def run_ingestion():
     """Main ingestion loop with detailed timing diagnostics"""
     global embedded_ids, is_ingesting, ingestion_stats
@@ -268,12 +239,10 @@ def run_ingestion():
     total_opensearch_time = 0
     chunks_streamed = 0
     
-    logger.info("="*60)
     logger.info("Starting ingestion with detailed timing")
     logger.info(f"Embedding batch size: {BATCH_SIZE}")
     logger.info(f"Write buffer size: {WRITE_BUFFER_SIZE:,}")
     logger.info(f"Already processed: {len(embedded_ids):,} chunks")
-    logger.info("="*60)
 
     try:
         stream_start = time.time()
@@ -365,7 +334,7 @@ def run_ingestion():
                         total_opensearch_success += len(write_buffer_ids)
                     
                     save_embedded_ids(embedded_ids)
-                    logger.info(f"💾 Saved state | FAISS: {faiss_time:.1f}s | OpenSearch: {opensearch_time:.1f}s")
+                    logger.info(f"Saved state | FAISS: {faiss_time:.1f}s | OpenSearch: {opensearch_time:.1f}s")
                     
                     
                     write_buffer_ids = []
@@ -424,24 +393,22 @@ def run_ingestion():
             "last_update": time.time()
         })
         
-        logger.info("="*60)
         logger.info("INGESTION COMPLETE - TIMING BREAKDOWN")
         logger.info(f"New chunks: {total_new:,}")
         logger.info(f"Total processed: {len(embedded_ids):,}")
         logger.info(f"Time: {elapsed:.1f}s | Rate: {avg_rate:.1f} chunks/sec")
         logger.info(f"")
         logger.info(f"Time breakdown:")
-        logger.info(f"  Streaming:   {total_stream_time:.1f}s ({stream_pct:.1f}%) ⚠️ KEY METRIC")
+        logger.info(f"  Streaming:   {total_stream_time:.1f}s ({stream_pct:.1f}%) KEY METRIC")
         logger.info(f"  Embedding:   {total_embed_time:.1f}s ({embed_pct:.1f}%)")
         logger.info(f"  FAISS:       {total_faiss_time:.1f}s ({faiss_pct:.1f}%)")
         logger.info(f"  OpenSearch:  {total_opensearch_time:.1f}s ({opensearch_pct:.1f}%)")
         logger.info(f"")
         logger.info(f"Chunks streamed from blob: {chunks_streamed:,}")
         logger.info(f"FAISS: {total_faiss_success:,} | OpenSearch: {total_opensearch_success:,}")
-        logger.info("="*60)
         
     except Exception as e:
-        logger.error(f"❌ Ingestion error: {e}", exc_info=True)
+        logger.error(f"Ingestion error: {e}", exc_info=True)
         ingestion_stats["status"] = "error"
         ingestion_stats["error"] = str(e)
         
@@ -449,18 +416,13 @@ def run_ingestion():
         is_ingesting = False
         save_embedded_ids(embedded_ids)
 
-# =========================================================
-# FASTAPI APP
-# =========================================================
+
 app = FastAPI(
     title="Wikipedia Embedding Service",
     description="Incremental embedding ingestion service for Wikipedia chunks",
     version="1.0.0"
 )
 
-# =========================================================
-# RESPONSE MODELS
-# =========================================================
 class HealthResponse(BaseModel):
     status: str
     embedded_chunks: int
@@ -481,9 +443,7 @@ class StatusResponse(BaseModel):
     is_ingesting: bool
     error: str | None
 
-# =========================================================
-# API ENDPOINTS
-# =========================================================
+
 @app.get("/", tags=["Info"])
 def root():
     return {
@@ -536,12 +496,8 @@ def get_status():
         "error": ingestion_stats.get("error")
     }
 
-# =========================================================
-# STARTUP EVENT
-# =========================================================
 @app.on_event("startup")
 async def startup_event():
-    logger.info("="*60)
     logger.info("Wikipedia Embedding Service Started")
     logger.info(f"Model: sentence-transformers/all-MiniLM-L6-v2 (FastEmbed)")
     logger.info(f"Embedding dimension: {EMBED_DIM}")
@@ -550,20 +506,6 @@ async def startup_event():
     logger.info(f"Previously embedded: {len(embedded_ids):,} chunks")
     logger.info(f"FAISS endpoint: {FAISS_ENDPOINT}/add")
     logger.info(f"OpenSearch endpoint: {OPENSEARCH_ENDPOINT}/add")
-    logger.info("="*60)
 
-# =========================================================
-# RUN
-# =========================================================
-if __name__ == "__main__":
-    import uvicorn
-    
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-        log_level="info"
-    )
 
 
